@@ -1,4 +1,4 @@
-"""Editor and Detail view for viewing, modifying, copying, and running snippets."""
+"""Editor and Detail view matching idea.jpg with styled action buttons and inputs."""
 
 from __future__ import annotations
 
@@ -8,11 +8,11 @@ import customtkinter as ctk
 
 from mnemo.models import Note, clean_tags
 from mnemo.template import extract_parameters
-from mnemo.ui.theme import COLORS, FONTS
+from mnemo.ui.theme import COLORS, FONTS, get_tag_colors
 
 
 class EditorView(ctk.CTkFrame):
-    """Right-side panel: Editor with toolbar, title, tags, and monospace content area."""
+    """Right-side panel: Editor with inputs, monospace content box, and idea.jpg action buttons."""
 
     def __init__(
         self,
@@ -42,16 +42,12 @@ class EditorView(ctk.CTkFrame):
         # Container for active editor
         self.editor_container = ctk.CTkFrame(self, fg_color="transparent")
 
-        # Top Action Bar
-        top_bar = ctk.CTkFrame(self.editor_container, fg_color="transparent")
-        top_bar.pack(fill="x", padx=20, pady=(16, 12))
-
-        # Status & Meta info (Left)
-        meta_frame = ctk.CTkFrame(top_bar, fg_color="transparent")
-        meta_frame.pack(side="left")
+        # Top Bar: Status and metadata
+        meta_bar = ctk.CTkFrame(self.editor_container, fg_color="transparent")
+        meta_bar.pack(fill="x", padx=24, pady=(16, 8))
 
         self.lbl_status = ctk.CTkLabel(
-            meta_frame,
+            meta_bar,
             text="✓ Saved",
             font=FONTS["small_bold"],
             text_color=COLORS["success"],
@@ -59,174 +55,233 @@ class EditorView(ctk.CTkFrame):
         self.lbl_status.pack(side="left")
 
         self.lbl_timestamp = ctk.CTkLabel(
-            meta_frame,
+            meta_bar,
             text="",
             font=FONTS["small"],
-            text_color=COLORS["text_muted"],
+            text_color=COLORS["text_dim"],
         )
         self.lbl_timestamp.pack(side="left", padx=(10, 0))
 
-        # Action Buttons (Right)
-        actions_frame = ctk.CTkFrame(top_bar, fg_color="transparent")
-        actions_frame.pack(side="right")
-
-        self.btn_copy = ctk.CTkButton(
-            actions_frame,
-            text="📋 Copy",
-            font=FONTS["body_bold"],
-            fg_color=COLORS["primary"],
-            hover_color=COLORS["primary_hover"],
-            height=32,
-            width=85,
-            command=self._on_copy_click,
-        )
-        self.btn_copy.pack(side="left", padx=(0, 6))
+        # Secondary utility buttons (Duplicate, Terminal Run, Param Filler) on top right
+        top_actions = ctk.CTkFrame(meta_bar, fg_color="transparent")
+        top_actions.pack(side="right")
 
         self.btn_params = ctk.CTkButton(
-            actions_frame,
+            top_actions,
             text="⚡ Fill Params",
-            font=FONTS["body_bold"],
-            fg_color=COLORS["secondary"],
-            text_color=COLORS["text"],
-            hover_color=COLORS["secondary_hover"],
-            height=32,
+            font=FONTS["small_bold"],
+            fg_color=COLORS["input_bg"],
+            border_width=1,
+            border_color=COLORS["border"],
+            text_color=COLORS["accent_cyan"],
+            hover_color=COLORS["card_bg_hover"],
+            height=28,
             command=self._on_params_click,
         )
         self.btn_params.pack(side="left", padx=(0, 6))
 
         self.btn_run = ctk.CTkButton(
-            actions_frame,
+            top_actions,
             text="▶ Run",
-            font=FONTS["body_bold"],
-            fg_color=COLORS["secondary"],
-            text_color=COLORS["text"],
-            hover_color=COLORS["secondary_hover"],
-            height=32,
-            width=70,
+            font=FONTS["small_bold"],
+            fg_color=COLORS["input_bg"],
+            border_width=1,
+            border_color=COLORS["border"],
+            text_color=COLORS["success"],
+            hover_color=COLORS["card_bg_hover"],
+            height=28,
+            width=65,
             command=self._on_run_click,
         )
         self.btn_run.pack(side="left", padx=(0, 6))
 
         self.btn_duplicate = ctk.CTkButton(
-            actions_frame,
+            top_actions,
             text="✂ Duplicate",
-            font=FONTS["body"],
-            fg_color=COLORS["secondary"],
-            text_color=COLORS["text"],
-            hover_color=COLORS["secondary_hover"],
-            height=32,
-            width=90,
+            font=FONTS["small"],
+            fg_color=COLORS["input_bg"],
+            border_width=1,
+            border_color=COLORS["border"],
+            text_color=COLORS["text_muted"],
+            hover_color=COLORS["card_bg_hover"],
+            height=28,
+            width=85,
             command=self._on_duplicate_click,
         )
-        self.btn_duplicate.pack(side="left", padx=(0, 6))
+        self.btn_duplicate.pack(side="left")
 
-        self.btn_delete = ctk.CTkButton(
-            actions_frame,
-            text="🗑 Delete (Del)",
-            font=FONTS["body"],
-            fg_color=COLORS["danger"],
-            hover_color=COLORS["danger_hover"],
-            height=32,
-            width=95,
-            command=self._on_delete_click,
-        )
-        self.btn_delete.pack(side="left", padx=(0, 6))
-
-        self.btn_save = ctk.CTkButton(
-            actions_frame,
-            text="💾 Save",
+        # 1. Title Input (matching idea.jpg)
+        lbl_title_tag = ctk.CTkLabel(
+            self.editor_container,
+            text="Title",
             font=FONTS["body_bold"],
-            fg_color=COLORS["primary"],
-            hover_color=COLORS["primary_hover"],
-            height=32,
-            width=80,
-            command=self.save_current,
+            text_color=COLORS["text_muted"],
+            anchor="w",
         )
-        self.btn_save.pack(side="left")
+        lbl_title_tag.pack(fill="x", padx=24, pady=(2, 2))
 
-        # Title Field
         self.title_entry = ctk.CTkEntry(
             self.editor_container,
-            placeholder_text="Snippet or Note Title...",
+            placeholder_text="Note or Snippet Title...",
             font=FONTS["title_entry"],
-            height=38,
-            corner_radius=6,
+            fg_color=COLORS["input_bg"],
+            border_color=COLORS["border"],
+            height=40,
+            corner_radius=8,
         )
-        self.title_entry.pack(fill="x", padx=20, pady=(0, 6))
+        self.title_entry.pack(fill="x", padx=24, pady=(0, 10))
         self.title_entry.bind("<KeyRelease>", lambda e: self._mark_dirty())
 
-        # Description Field
-        self.desc_entry = ctk.CTkEntry(
+        # 2. Tags Section (matching idea.jpg)
+        lbl_tags = ctk.CTkLabel(
             self.editor_container,
-            placeholder_text="Short description of what this command/snippet does (optional)...",
-            font=FONTS["body"],
-            height=32,
-            corner_radius=6,
-        )
-        self.desc_entry.pack(fill="x", padx=20, pady=(0, 8))
-        self.desc_entry.bind("<KeyRelease>", lambda e: self._mark_dirty())
-
-        # Tags Row
-        tags_row = ctk.CTkFrame(self.editor_container, fg_color="transparent")
-        tags_row.pack(fill="x", padx=20, pady=(0, 6))
-
-        lbl_tags_icon = ctk.CTkLabel(
-            tags_row,
-            text="🏷️ Tags:",
-            font=FONTS["small_bold"],
+            text="Tags",
+            font=FONTS["body_bold"],
             text_color=COLORS["text_muted"],
+            anchor="w",
         )
-        lbl_tags_icon.pack(side="left", padx=(0, 6))
+        lbl_tags.pack(fill="x", padx=24, pady=(0, 2))
 
         self.tags_entry = ctk.CTkEntry(
-            tags_row,
-            placeholder_text="Comma-separated tags (e.g. git, shell, docker, python)",
+            self.editor_container,
+            placeholder_text="e.g. ssh, servers, prod, template",
             font=FONTS["body"],
-            height=32,
-            corner_radius=6,
+            fg_color=COLORS["input_bg"],
+            border_color=COLORS["border"],
+            height=36,
+            corner_radius=8,
         )
-        self.tags_entry.pack(side="left", fill="x", expand=True)
+        self.tags_entry.pack(fill="x", padx=24, pady=(0, 6))
         self.tags_entry.bind("<KeyRelease>", lambda e: self._on_tags_changed())
 
-        # Tag badges preview row
+        # Tag badges live preview
         self.badges_frame = ctk.CTkFrame(self.editor_container, fg_color="transparent")
-        self.badges_frame.pack(fill="x", padx=20, pady=(0, 8))
+        self.badges_frame.pack(fill="x", padx=24, pady=(0, 8))
 
-        # Content Textbox (Monospace)
+        # 3. Description Section
+        lbl_desc = ctk.CTkLabel(
+            self.editor_container,
+            text="Description",
+            font=FONTS["body_bold"],
+            text_color=COLORS["text_muted"],
+            anchor="w",
+        )
+        lbl_desc.pack(fill="x", padx=24, pady=(0, 2))
+
+        self.desc_entry = ctk.CTkEntry(
+            self.editor_container,
+            placeholder_text="Short description of what this command/snippet does...",
+            font=FONTS["body"],
+            fg_color=COLORS["input_bg"],
+            border_color=COLORS["border"],
+            height=34,
+            corner_radius=8,
+        )
+        self.desc_entry.pack(fill="x", padx=24, pady=(0, 10))
+        self.desc_entry.bind("<KeyRelease>", lambda e: self._mark_dirty())
+
+        # 4. Content Textbox (Monospace dark terminal surface from idea.jpg)
+        lbl_content = ctk.CTkLabel(
+            self.editor_container,
+            text="Snippet / Command Content",
+            font=FONTS["body_bold"],
+            text_color=COLORS["text_muted"],
+            anchor="w",
+        )
+        lbl_content.pack(fill="x", padx=24, pady=(0, 2))
+
         self.content_box = ctk.CTkTextbox(
             self.editor_container,
             font=FONTS["code"],
+            fg_color=COLORS["editor_bg"],
+            text_color=COLORS["text"],
             wrap="none",
-            corner_radius=6,
+            corner_radius=8,
             border_width=1,
             border_color=COLORS["border"],
         )
-        self.content_box.pack(fill="both", expand=True, padx=20, pady=(0, 8))
+        self.content_box.pack(fill="both", expand=True, padx=24, pady=(0, 10))
         self.content_box.bind("<KeyRelease>", lambda e: self._on_content_changed())
-        # Intercept Tab key to insert 4 spaces
         self.content_box.bind("<Tab>", self._insert_tab_spaces)
 
-        # Bottom Bar: Stats and parameters status
-        bottom_bar = ctk.CTkFrame(self.editor_container, fg_color="transparent")
-        bottom_bar.pack(fill="x", padx=20, pady=(0, 14))
+        # 5. Bottom Action Bar matching idea.jpg
+        # [Copy to Clipboard]  [Save Changes]  [Revert / Reset]  [Delete Note]
+        action_bar = ctk.CTkFrame(self.editor_container, fg_color="transparent")
+        action_bar.pack(fill="x", padx=24, pady=(0, 16))
 
-        self.lbl_param_status = ctk.CTkLabel(
-            bottom_bar,
+        # Copy to Clipboard (Cyan border)
+        self.btn_copy = ctk.CTkButton(
+            action_bar,
+            text="📋 Copy to Clipboard",
+            font=FONTS["body_bold"],
+            fg_color="transparent",
+            border_width=1,
+            border_color=COLORS["accent_cyan"],
+            text_color=COLORS["accent_cyan"],
+            hover_color="#0e2a3b",
+            height=38,
+            corner_radius=8,
+            command=self._on_copy_click,
+        )
+        self.btn_copy.pack(side="left", padx=(0, 10))
+
+        # Save Changes (Emerald Green border)
+        self.btn_save = ctk.CTkButton(
+            action_bar,
+            text="Save Changes",
+            font=FONTS["body_bold"],
+            fg_color="transparent",
+            border_width=1,
+            border_color=COLORS["success"],
+            text_color=COLORS["success"],
+            hover_color="#0e3328",
+            height=38,
+            corner_radius=8,
+            command=self.save_current,
+        )
+        self.btn_save.pack(side="left", padx=(0, 10))
+
+        # Revert / Reset button
+        self.btn_revert = ctk.CTkButton(
+            action_bar,
+            text="Revert / Reset",
+            font=FONTS["body"],
+            fg_color=COLORS["card_bg"],
+            border_width=1,
+            border_color=COLORS["border"],
+            text_color=COLORS["text_muted"],
+            hover_color=COLORS["card_bg_hover"],
+            height=38,
+            corner_radius=8,
+            command=self.revert_changes,
+        )
+        self.btn_revert.pack(side="left", padx=(0, 10))
+
+        # Delete Note (Red Danger border)
+        self.btn_delete = ctk.CTkButton(
+            action_bar,
+            text="Delete Note",
+            font=FONTS["body"],
+            fg_color="transparent",
+            border_width=1,
+            border_color=COLORS["danger"],
+            text_color=COLORS["danger"],
+            hover_color="#361519",
+            height=38,
+            corner_radius=8,
+            command=self._on_delete_click,
+        )
+        self.btn_delete.pack(side="right")
+
+        # Stats info label in bottom corner
+        self.lbl_stats = ctk.CTkLabel(
+            self.editor_container,
             text="",
             font=FONTS["small"],
-            text_color=COLORS["primary"],
-            anchor="w",
-        )
-        self.lbl_param_status.pack(side="left")
-
-        self.lbl_char_count = ctk.CTkLabel(
-            bottom_bar,
-            text="0 lines, 0 chars",
-            font=FONTS["small"],
-            text_color=COLORS["text_muted"],
+            text_color=COLORS["text_dim"],
             anchor="e",
         )
-        self.lbl_char_count.pack(side="right")
+        self.lbl_stats.pack(fill="x", padx=24, pady=(0, 4))
 
         # Empty State Placeholder Frame
         self.placeholder_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -240,13 +295,13 @@ class EditorView(ctk.CTkFrame):
             center_box,
             text="⚡",
             font=("Segoe UI", 48),
-            text_color=COLORS["primary"],
+            text_color=COLORS["accent_cyan"],
         )
         lbl_icon.pack(pady=(0, 8))
 
         lbl_title = ctk.CTkLabel(
             center_box,
-            text="Mnemo Manager",
+            text="Mnemo",
             font=FONTS["app_title"],
             text_color=COLORS["text"],
         )
@@ -263,7 +318,7 @@ class EditorView(ctk.CTkFrame):
         # Shortcuts quick table
         sc_frame = ctk.CTkFrame(
             center_box,
-            fg_color=COLORS["secondary"],
+            fg_color=COLORS["input_bg"],
             corner_radius=8,
             border_width=1,
             border_color=COLORS["border"],
@@ -286,7 +341,7 @@ class EditorView(ctk.CTkFrame):
                 row,
                 text=key,
                 font=FONTS["code_small"],
-                text_color=COLORS["primary"],
+                text_color=COLORS["accent_cyan"],
                 width=130,
                 anchor="w",
             )
@@ -339,6 +394,11 @@ class EditorView(ctk.CTkFrame):
         self._update_badges()
         self._update_stats_and_params()
 
+    def revert_changes(self) -> None:
+        """Revert changes back to the saved state of the current note."""
+        if self.current_note:
+            self.load_note(self.current_note)
+
     def _mark_dirty(self) -> None:
         if not self.is_dirty:
             self.is_dirty = True
@@ -363,17 +423,18 @@ class EditorView(ctk.CTkFrame):
         raw_tags = self.tags_entry.get()
         tags_list = clean_tags(raw_tags)
         for tag in tags_list[:8]:
+            col = get_tag_colors(tag)
             badge = ctk.CTkLabel(
                 self.badges_frame,
                 text=f"#{tag}",
-                font=FONTS["small"],
-                fg_color=COLORS["tag_bg"],
-                text_color=COLORS["tag_text"],
-                corner_radius=4,
-                padx=6,
-                pady=1,
+                font=FONTS["small_bold"],
+                fg_color=col["bg"],
+                text_color=col["text"],
+                corner_radius=5,
+                padx=7,
+                pady=2,
             )
-            badge.pack(side="left", padx=(0, 4))
+            badge.pack(side="left", padx=(0, 5))
 
     def _on_content_changed(self) -> None:
         self._mark_dirty()
@@ -383,30 +444,37 @@ class EditorView(ctk.CTkFrame):
         content = self.content_box.get("1.0", "end-1c")
         lines = len(content.splitlines()) if content else 0
         chars = len(content)
-        self.lbl_char_count.configure(text=f"{lines} lines, {chars} chars")
 
         params = extract_parameters(content)
         if params:
             param_names = ", ".join(f"{{{p}}}" for p in params[:4])
             if len(params) > 4:
                 param_names += f" +{len(params) - 4}"
-            self.lbl_param_status.configure(
-                text=f"⚡ {len(params)} param(s): {param_names}"
+            self.lbl_stats.configure(
+                text=f"⚡ {len(params)} param(s): {param_names}  |  {lines} lines, {chars} chars"
             )
-            self.btn_params.configure(state="normal", fg_color=COLORS["primary"])
+            self.btn_params.configure(border_color=COLORS["accent_cyan"])
         else:
-            self.lbl_param_status.configure(text="")
-            self.btn_params.configure(state="normal", fg_color=COLORS["secondary"])
+            self.lbl_stats.configure(text=f"{lines} lines, {chars} chars")
+            self.btn_params.configure(border_color=COLORS["border"])
 
     def _on_copy_click(self) -> None:
         content = self.content_box.get("1.0", "end-1c")
         self.clipboard_clear()
         self.clipboard_append(content)
 
-        self.btn_copy.configure(text="✓ Copied!", fg_color=COLORS["success"])
+        self.btn_copy.configure(
+            text="✓ Copied!",
+            border_color=COLORS["success"],
+            text_color=COLORS["success"],
+        )
         self.after(
             1600,
-            lambda: self.btn_copy.configure(text="📋 Copy", fg_color=COLORS["primary"]),
+            lambda: self.btn_copy.configure(
+                text="📋 Copy to Clipboard",
+                border_color=COLORS["accent_cyan"],
+                text_color=COLORS["accent_cyan"],
+            ),
         )
 
     def _on_params_click(self) -> None:

@@ -1,4 +1,4 @@
-"""Main application window for Mnemo."""
+"""Main application window for Mnemo matching the idea.jpg design and logo branding."""
 
 from __future__ import annotations
 
@@ -7,17 +7,18 @@ from pathlib import Path
 from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
+from PIL import Image
 
 from mnemo.models import Note
 from mnemo.storage import DEFAULT_FILENAME, StorageManager
 from mnemo.ui.dialogs import CommandRunnerDialog, ConfirmDialog, ParameterFillDialog
 from mnemo.ui.editor_view import EditorView
 from mnemo.ui.list_view import ListView
-from mnemo.ui.sidebar import SidebarView
+from mnemo.ui.theme import COLORS, FONTS
 
 
 class MnemoApp(ctk.CTk):
-    """Main Mnemo desktop window."""
+    """Main Mnemo desktop window styled after idea.jpg."""
 
     def __init__(self, data_file: Path | str | None = None) -> None:
         super().__init__()
@@ -27,9 +28,14 @@ class MnemoApp(ctk.CTk):
         ctk.set_default_color_theme("blue")
 
         # Window settings
-        self.title("Mnemo — Notes, Snippets & Command Manager")
+        self.title("Mnemo")
         self.geometry("1200x750")
         self.minsize(920, 560)
+        self.configure(fg_color=COLORS["main_bg"])
+
+        # Asset paths
+        self.assets_dir = Path(__file__).resolve().parent.parent.parent / "assets"
+        self._setup_window_icon()
 
         # Storage initialization
         self.storage = StorageManager(data_file or DEFAULT_FILENAME)
@@ -49,47 +55,156 @@ class MnemoApp(ctk.CTk):
         else:
             self.editor_view.show_empty_placeholder()
 
+    def _setup_window_icon(self) -> None:
+        """Set native window icon if asset exists."""
+        ico_file = self.assets_dir / "icon.ico"
+        if ico_file.exists():
+            try:
+                self.iconbitmap(str(ico_file))
+            except Exception:
+                pass
+
     def _build_layout(self) -> None:
-        # Main root layout container
-        self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(0, weight=0)  # Sidebar
-        self.grid_columnconfigure(1, weight=0)  # List View
-        self.grid_columnconfigure(2, weight=1)  # Editor View
-
-        # 1. Sidebar (Col 0)
-        self.sidebar_view = SidebarView(
+        # Top Header Bar matching idea.jpg
+        self.top_bar = ctk.CTkFrame(
             self,
-            storage=self.storage,
-            on_new_snippet=self.create_new_snippet,
-            on_select_tag=self._on_sidebar_tag_selected,
-            on_import_json=self._handle_import_json,
-            on_export_json=self._handle_export_json,
-            on_export_markdown=self._handle_export_markdown,
-            on_load_samples=self._handle_load_samples,
-            width=250,
+            height=52,
+            fg_color=COLORS["topbar_bg"],
+            corner_radius=0,
+            border_width=1,
+            border_color=COLORS["border"],
         )
-        self.sidebar_view.grid(row=0, column=0, sticky="nsew")
+        self.top_bar.pack(fill="x", side="top")
 
-        # 2. List View (Col 1)
+        # Brand Logo + Title (Left)
+        brand_frame = ctk.CTkFrame(self.top_bar, fg_color="transparent")
+        brand_frame.pack(side="left", padx=16, pady=8)
+
+        logo_path = self.assets_dir / "logo_icon.png"
+        if logo_path.exists():
+            try:
+                pil_logo = Image.open(logo_path)
+                self.logo_ctk = ctk.CTkImage(
+                    light_image=pil_logo,
+                    dark_image=pil_logo,
+                    size=(28, 24),
+                )
+                lbl_icon = ctk.CTkLabel(
+                    brand_frame,
+                    image=self.logo_ctk,
+                    text="",
+                )
+                lbl_icon.pack(side="left", padx=(0, 8))
+            except Exception:
+                pass
+
+        lbl_logo_text = ctk.CTkLabel(
+            brand_frame,
+            text="Mnemo",
+            font=FONTS["app_title"],
+            text_color=COLORS["text"],
+        )
+        lbl_logo_text.pack(side="left")
+
+        # Top Bar Right Controls (Tag filter, Samples, Data, Theme)
+        top_right = ctk.CTkFrame(self.top_bar, fg_color="transparent")
+        top_right.pack(side="right", padx=16, pady=8)
+
+        # Tag Filter Menu
+        lbl_tag_nav = ctk.CTkLabel(
+            top_right,
+            text="🏷️",
+            font=FONTS["small"],
+            text_color=COLORS["text_muted"],
+        )
+        lbl_tag_nav.pack(side="left", padx=(0, 4))
+
+        self.tag_menu = ctk.CTkOptionMenu(
+            top_right,
+            values=["All Tags"],
+            font=FONTS["small"],
+            fg_color=COLORS["input_bg"],
+            button_color=COLORS["card_bg_hover"],
+            height=28,
+            width=120,
+            command=self._on_top_tag_selected,
+        )
+        self.tag_menu.set("All Tags")
+        self.tag_menu.pack(side="left", padx=(0, 10))
+
+        # Starter Samples
+        btn_samples = ctk.CTkButton(
+            top_right,
+            text="💡 Samples",
+            font=FONTS["small"],
+            fg_color=COLORS["input_bg"],
+            border_width=1,
+            border_color=COLORS["border"],
+            text_color=COLORS["text_muted"],
+            hover_color=COLORS["card_bg_hover"],
+            height=28,
+            width=80,
+            command=self._handle_load_samples,
+        )
+        btn_samples.pack(side="left", padx=(0, 8))
+
+        # Data Options (Import / Export)
+        self.data_menu = ctk.CTkOptionMenu(
+            top_right,
+            values=["Import JSON", "Export JSON", "Export Markdown"],
+            font=FONTS["small"],
+            fg_color=COLORS["input_bg"],
+            button_color=COLORS["card_bg_hover"],
+            height=28,
+            width=115,
+            command=self._on_data_menu_selected,
+        )
+        self.data_menu.set("⚙ Data")
+        self.data_menu.pack(side="left", padx=(0, 8))
+
+        # Theme Switcher
+        self.theme_menu = ctk.CTkOptionMenu(
+            top_right,
+            values=["Dark", "Light", "System"],
+            font=FONTS["small"],
+            fg_color=COLORS["input_bg"],
+            button_color=COLORS["card_bg_hover"],
+            height=28,
+            width=85,
+            command=lambda m: ctk.set_appearance_mode(m.lower()),
+        )
+        self.theme_menu.set(ctk.get_appearance_mode().capitalize() or "Dark")
+        self.theme_menu.pack(side="left")
+
+        # Main Workspace Container (2-pane split: ListView left, EditorView right)
+        workspace = ctk.CTkFrame(self, fg_color="transparent")
+        workspace.pack(fill="both", expand=True)
+
+        workspace.grid_rowconfigure(0, weight=1)
+        workspace.grid_columnconfigure(0, weight=0)  # Left Cards List
+        workspace.grid_columnconfigure(1, weight=1)  # Right Editor
+
+        # 1. Left List View (matches idea.jpg)
         self.list_view = ListView(
-            self,
+            workspace,
             storage=self.storage,
             on_select_note=self._select_note,
-            on_tag_cleared=lambda: self.sidebar_view._clear_tag_filter(),
-            width=360,
+            on_tag_cleared=lambda: self.tag_menu.set("All Tags"),
+            on_new_note=self.create_new_snippet,
+            width=320,
         )
-        self.list_view.grid(row=0, column=1, sticky="nsew")
+        self.list_view.grid(row=0, column=0, sticky="nsew")
 
-        # 3. Editor View (Col 2)
+        # 2. Right Editor View (matches idea.jpg)
         self.editor_view = EditorView(
-            self,
+            workspace,
             on_save=self._save_note,
             on_delete=self._prompt_delete_note,
             on_duplicate=self._duplicate_note,
             on_open_params=self._open_parameter_dialog,
             on_run_command=self._open_command_runner,
         )
-        self.editor_view.grid(row=0, column=2, sticky="nsew")
+        self.editor_view.grid(row=0, column=1, sticky="nsew")
 
     def _bind_shortcuts(self) -> None:
         """Register application-wide keyboard shortcuts."""
@@ -160,9 +275,35 @@ class MnemoApp(ctk.CTk):
             self._duplicate_note(self.current_note.id)
 
     def _refresh_all(self) -> None:
-        """Synchronize both list view and sidebar with current storage state."""
+        """Synchronize list view and top tag filter with current storage state."""
         self.list_view.refresh_list()
-        self.sidebar_view.refresh_tags()
+        self._refresh_tags_menu()
+
+    def _refresh_tags_menu(self) -> None:
+        """Update top bar tag filter dropdown values."""
+        tags = list(self.storage.get_tags().keys())
+        tag_options = ["All Tags"] + [f"#{t}" for t in tags]
+        self.tag_menu.configure(values=tag_options)
+        if self.list_view.active_tag:
+            self.tag_menu.set(f"#{self.list_view.active_tag}")
+        else:
+            self.tag_menu.set("All Tags")
+
+    def _on_top_tag_selected(self, val: str) -> None:
+        if val == "All Tags":
+            self.list_view.set_active_tag(None)
+        else:
+            tag_name = val.lstrip("#")
+            self.list_view.set_active_tag(tag_name)
+
+    def _on_data_menu_selected(self, action: str) -> None:
+        self.data_menu.set("⚙ Data")
+        if action == "Import JSON":
+            self._handle_import_json()
+        elif action == "Export JSON":
+            self._handle_export_json()
+        elif action == "Export Markdown":
+            self._handle_export_markdown()
 
     def _select_note(self, note: Note) -> None:
         """Select a note, update card selection, and display in editor."""
@@ -172,7 +313,7 @@ class MnemoApp(ctk.CTk):
 
     def create_new_snippet(self) -> None:
         """Create a new blank snippet, select it, and focus editor."""
-        active_tag = self.sidebar_view.selected_tag
+        active_tag = self.list_view.active_tag
         initial_tags = [active_tag] if active_tag else []
 
         new_note = self.storage.add(
@@ -240,10 +381,6 @@ class MnemoApp(ctk.CTk):
         if dup:
             self._refresh_all()
             self._select_note(dup)
-
-    def _on_sidebar_tag_selected(self, tag: str | None) -> None:
-        """Handle tag filter selection from the sidebar."""
-        self.list_view.set_active_tag(tag)
 
     def _open_parameter_dialog(self, content: str) -> None:
         """Open the parameter filler modal."""
@@ -336,7 +473,8 @@ class MnemoApp(ctk.CTk):
             self,
             title="Load Starter Samples",
             message="Would you like to add curated starter snippets (Git, Docker, PowerShell, Python, Bash) to your library?",
-            confirm_text="Load Samples",
+            confirm_text="Yes",
+            cancel_text="No",
             is_destructive=False,
             on_confirm=do_load,
         )

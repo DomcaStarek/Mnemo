@@ -31,7 +31,10 @@ class ConfirmDialog(ctk.CTkToplevel):
         self.geometry("420x210")
         self.resizable(False, False)
         self.transient(parent)
-        self.grab_set()
+        try:
+            self.grab_set()
+        except Exception:
+            pass
 
         self.on_confirm = on_confirm
 
@@ -134,7 +137,10 @@ class ParameterFillDialog(ctk.CTkToplevel):
         self.geometry("640x520")
         self.minsize(550, 420)
         self.transient(parent)
-        self.grab_set()
+        try:
+            self.grab_set()
+        except Exception:
+            pass
 
         self.template_content = template_content
         self.on_run_command = on_run_command
@@ -295,7 +301,10 @@ class CommandRunnerDialog(ctk.CTkToplevel):
         self.geometry("700x520")
         self.minsize(580, 420)
         self.transient(parent)
-        self.grab_set()
+        try:
+            self.grab_set()
+        except Exception:
+            pass
 
         self.command = command.strip()
         self.runner = CommandRunner()
