@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.tmp
+*.bak_*
+.pytest_cache/
+.ruff_cache/
+mnemo_data.json
